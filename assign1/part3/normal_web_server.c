@@ -3,6 +3,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <signal.h>
+#include <pthread.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <netinet/in.h>
@@ -21,7 +22,6 @@ void urldecode2(char *dst, char *src)
                a -= ('A' - 10);
          else
                a -= '0';
-         
          if (b >= 'a')
                b -= 'a'-'A';
          if (b >= 'A')
@@ -55,6 +55,7 @@ char* get_command(char *body){
    command[length + 3]='&';
    command[length + 4]='1';
    command[length + 5]='\0';
+   free(url_encoded_command);
    return command;
 }
 
@@ -87,13 +88,19 @@ void handle_good_request(int *socket, char *request_body){
    for (i=0;i<count;i++){
       write(*socket, entries[i], strlen(entries[i]));
    }
+   free(size_string);
+   free(command);
+   for (i=0;i<count;i++){
+      free(entries[i]);
+   }
 }
 
 // ************* HANDLE REQUEST IN A SEPERATE THREAD ***************
-void execute_thread(int *socket){
+void* execute_thread(void* thread_param){
    int bufsize = 1024;
    char *request_body = (char *) malloc(bufsize);
    char *expected_request = "GET /exec/";
+   int *socket = (int *) thread_param;
    recv(*socket, request_body, bufsize, 0);
    if (strncmp(request_body, expected_request, 10)!=0) {
       write(*socket, "HTTP/1.1 404 Not Found\n", 23);
@@ -103,6 +110,7 @@ void execute_thread(int *socket){
    } else {
       handle_good_request(socket, request_body);
    }
+   free(request_body);
    close(*socket);
 }
 
@@ -120,6 +128,7 @@ void sig_handler(int sig_no){
 
 
 int main(int argc, char *argv[]) {
+   pthread_t *thread;
    int port_number;
    int new_socket;
    socklen_t addrlen;
@@ -157,7 +166,11 @@ int main(int argc, char *argv[]) {
       if (new_socket > 0) {
          // printf("The Client is connected...\n");
       }
-      execute_thread(&new_socket);
+      thread = (pthread_t*)malloc(sizeof(pthread_t));
+      pthread_create(thread, NULL, execute_thread, (void *)&new_socket);
+      usleep(10);
+      pthread_join(*thread, NULL);
+      // execute_thread(&new_socket);
    }
    close(create_socket);
    return 0;
