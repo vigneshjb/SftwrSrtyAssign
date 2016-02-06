@@ -1,21 +1,13 @@
-/*
- * Working on line 73- 84 on writing the result as a string on HTTP
- * Need to implement the thread around line 183
- */
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <signal.h>
-
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
-
 int create_socket;
-
 // **************** URL DECODER ********************
 void urldecode2(char *dst, char *src)
 {
@@ -50,14 +42,19 @@ void urldecode2(char *dst, char *src)
 
 //*************RETURNS THE URL **************
 char* get_command(char *body){
-
    int length = strchr(body,'\n')-body;
-   char *url_encoded_command = malloc(length);
-   char *command = malloc(length);
-
+   char *url_encoded_command = (char *)malloc(length);
+   char *command = (char *)malloc(length-19);
    strncpy(url_encoded_command, body+10, length-19);
-   *(url_encoded_command+length)='\0';
+   url_encoded_command[length]='\0';
    urldecode2(command, url_encoded_command);
+   length = length-19-strlen(url_encoded_command)+strlen(command);
+   command[length]=' ';
+   command[length + 1]='2';
+   command[length + 2]='>';
+   command[length + 3]='&';
+   command[length + 4]='1';
+   command[length + 5]='\0';
    return command;
 }
 
@@ -67,10 +64,7 @@ void handle_good_request(int *socket, char *request_body){
    char *entries[1000];
    char *size_string = (char *) malloc(10);
    int count=0, i=0, tot_size=0;
-
-   printf("%s\n", request_body);
-   char *command = get_command(request_body);
-
+   char *command=get_command(request_body);
    fp = popen(command, "r");
    if (fp == NULL) {
       printf("Failed to run command\n" );
@@ -82,12 +76,9 @@ void handle_good_request(int *socket, char *request_body){
       }
    }
    pclose(fp);
-
    for (i=0;i<count;i++)
       tot_size+=strlen(entries[i]);
-
    sprintf(size_string, "%d", tot_size);
-
    write(*socket, "HTTP/1.1 200 OK\n", 16);
    write(*socket, "Content-length: ", 16);
    write(*socket, size_string, strlen(size_string));
@@ -100,15 +91,11 @@ void handle_good_request(int *socket, char *request_body){
 
 // ************* HANDLE REQUEST IN A SEPERATE THREAD ***************
 void execute_thread(int *socket){
-   
    int bufsize = 1024;
-   char *request_body = malloc(bufsize);
+   char *request_body = (char *) malloc(bufsize);
    char *expected_request = "GET /exec/";
-
    recv(*socket, request_body, bufsize, 0);
-   
    if (strncmp(request_body, expected_request, 10)!=0) {
-      printf("Bad request --- ignoring rest of the body");
       write(*socket, "HTTP/1.1 404 Not Found\n", 23);
       write(*socket, "Content-length: 46\n", 19);
       write(*socket, "Content-Type: text/html\n\n", 25);
@@ -121,25 +108,22 @@ void execute_thread(int *socket){
 
 // ************* GRACEFULLY EXIT PROGRAM ***************
 void gracefully_exit(char *message){
-   printf("Gracefully exiting program because %s \n", message);
+   close(create_socket);
    exit(0);
 }
 
 // ************* SIGNAL HANDLER ***************
 void sig_handler(int sig_no){
-   printf("SIGINT Caught \n");
    close(create_socket);
    exit(0);
 }
 
 
 int main(int argc, char *argv[]) {
-
    int port_number;
    int new_socket;
    socklen_t addrlen;
    struct sockaddr_in address;
- 
    // *********** READING PORT NUMBER **************
    if (argc!=2 || strlen(argv[1])<=0) {
       gracefully_exit("Incorrect program execution");
@@ -148,50 +132,33 @@ int main(int argc, char *argv[]) {
       if (port_number<=0) {
          gracefully_exit("Port is not in the right format");
       }
-      printf("port number is fixed as : %d\n", port_number);
    }
-
- 
    // *************** CATCH ALL SIGNALS ***************
-   if (signal(SIGINT, sig_handler) == SIG_ERR)
-      printf("Can't catch SIGINT");
- 
-
+   signal(SIGINT, sig_handler);
    // *************** CREATING A SOCKET ***************
-   if ((create_socket = socket(AF_INET, SOCK_STREAM, 0)) > 0) {
-      printf("The socket was created\n");
-   } else {
+   if ((create_socket = socket(AF_INET, SOCK_STREAM, 0)) <= 0) {
       gracefully_exit("Socket creation failed");
    }
-
    address.sin_family = AF_INET;
    address.sin_addr.s_addr = INADDR_ANY;
    address.sin_port = htons(port_number);
-
-   if (bind(create_socket, (struct sockaddr *) &address, sizeof(address)) == 0) {
-      printf("Binding Socket Successful :) \n");
-   } else {
-      gracefully_exit("Binding Socket Failed :(");
+   if (bind(create_socket, (struct sockaddr *) &address, sizeof(address)) != 0) {
+       gracefully_exit("Binding Socket Failed :(");
    }
-
    while (1) {
       if (listen(create_socket, 10) < 0) {
          perror("server: listen");
          exit(1);
       }
-
       if ((new_socket = accept(create_socket, (struct sockaddr *) &address, &addrlen)) < 0) {
          perror("server: accept");
          exit(1);
       }
-
       if (new_socket > 0) {
-         printf("The Client is connected...\n");
+         // printf("The Client is connected...\n");
       }
-    
       execute_thread(&new_socket);
    }
-
    close(create_socket);
    return 0;
 }
