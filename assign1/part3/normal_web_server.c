@@ -6,14 +6,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
 #include <unistd.h>
 #include <signal.h>
 
-#include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <netinet/in.h>
+#include <sys/socket.h>
 
 int create_socket;
 
@@ -65,27 +64,38 @@ char* get_command(char *body){
 void handle_good_request(int *socket, char *request_body){
    FILE *fp;
    char path[1035];
-   int count=0;
+   char *entries[1000];
+   char *size_string = (char *) malloc(10);
+   int count=0, i=0, tot_size=0;
 
    printf("%s\n", request_body);
    char *command = get_command(request_body);
 
-   printf("\n\n\n\n\n\n");
    fp = popen(command, "r");
    if (fp == NULL) {
       printf("Failed to run command\n" );
    } else {
-      while (fgets(path, sizeof(path)-1, fp) != NULL) {
-         printf("%s", path);
+      while (fgets(path, sizeof(path)-1, fp) != NULL ) {
+         entries[count] = (char*)malloc(strlen(path));
+         strcpy(entries[count], path);
+         count++;
       }
    }
    pclose(fp);
-   printf("\n\n\n\n\n\n");
+
+   for (i=0;i<count;i++)
+      tot_size+=strlen(entries[i]);
+
+   sprintf(size_string, "%d", tot_size);
 
    write(*socket, "HTTP/1.1 200 OK\n", 16);
-   write(*socket, "Content-length: 46\n", 19);
+   write(*socket, "Content-length: ", 16);
+   write(*socket, size_string, strlen(size_string));
+   write(*socket, "\n", 1);
    write(*socket, "Content-Type: text/html\n\n", 25);
-   write(*socket, "<html><body><H1>hello world</H1></body></html>\n",47);
+   for (i=0;i<count;i++){
+      write(*socket, entries[i], strlen(entries[i]));
+   }
 }
 
 // ************* HANDLE REQUEST IN A SEPERATE THREAD ***************
