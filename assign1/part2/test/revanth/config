@@ -1,0 +1,8 @@
+Host revu
+User revu
+HostName localGoogle
+
+Host revu1
+User revu1
+HostName localrevu
+#IdentityFile ~/.ssh/id_rsa

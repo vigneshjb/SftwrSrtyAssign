@@ -1,0 +1,11 @@
+Host github-project1
+    User git
+    HostName github.com
+    IdentityFile ~/.ssh/github.project1.key</p>
+Host github-org
+    User git
+    HostName github.com
+    IdentityFile ~/.ssh/github.org.key</p>
+Host github.com
+    User git
+    IdentityFile ~/.ssh/github.key
