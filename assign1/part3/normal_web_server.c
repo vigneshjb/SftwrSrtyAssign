@@ -55,6 +55,7 @@ char* get_command(char *body){
    command[length + 3]='&';
    command[length + 4]='1';
    command[length + 5]='\0';
+   free(url_encoded_command);
    return command;
 }
 
@@ -87,6 +88,10 @@ void handle_good_request(int *socket, char *request_body){
    for (i=0;i<count;i++){
       write(*socket, entries[i], strlen(entries[i]));
    }
+   free(size_string);
+   for (i=0;i<count;i++){
+      free(entries[i]);
+   }
 }
 
 // ************* HANDLE REQUEST IN A SEPERATE THREAD ***************
@@ -104,6 +109,7 @@ void execute_thread(int *socket){
       handle_good_request(socket, request_body);
    }
    close(*socket);
+   free(request_body);
 }
 
 // ************* GRACEFULLY EXIT PROGRAM ***************
