@@ -3,6 +3,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <signal.h>
+#include <pthread.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <netinet/in.h>
@@ -95,8 +96,9 @@ void handle_good_request(int *socket, char *request_body){
 }
 
 // ************* HANDLE REQUEST IN A SEPERATE THREAD ***************
-void execute_thread(int *socket){
+void* execute_thread(void* thread_param){
    int bufsize = 1024;
+   int *socket = (int*)thread_param;
    char *request_body = (char *) malloc(bufsize);
    char *expected_request = "GET /exec/";
    recv(*socket, request_body, bufsize, 0);
@@ -108,8 +110,9 @@ void execute_thread(int *socket){
    } else {
       handle_good_request(socket, request_body);
    }
-   close(*socket);
    free(request_body);
+   close(*socket);
+   return NULL;
 }
 
 // ************* GRACEFULLY EXIT PROGRAM ***************
@@ -129,6 +132,7 @@ int main(int argc, char *argv[]) {
    int port_number;
    int new_socket;
    socklen_t addrlen;
+   pthread_t *thread;
    struct sockaddr_in address;
    // *********** READING PORT NUMBER **************
    if (argc!=2 || strlen(argv[1])<=0) {
@@ -163,7 +167,10 @@ int main(int argc, char *argv[]) {
       if (new_socket > 0) {
          // printf("The Client is connected...\n");
       }
-      execute_thread(&new_socket);
+      thread = (pthread_t*)malloc(sizeof(pthread_t));
+      pthread_create(thread, NULL, execute_thread, (void *)&new_socket);
+      usleep(10);
+      // execute_thread(&new_socket);
    }
    close(create_socket);
    return 0;
