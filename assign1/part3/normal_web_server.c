@@ -50,13 +50,12 @@ char* get_command(char *body){
    url_encoded_command[length]='\0';
    urldecode2(command, url_encoded_command);
    length = length-19-strlen(url_encoded_command)+strlen(command);
-   command[length]=' ';
-   command[length + 1]='2';
-   command[length + 2]='>';
-   command[length + 3]='&';
-   command[length + 4]='1';
-   command[length + 5]='\0';
-   free(url_encoded_command);
+   command[length ]='2';
+   command[length + 1]='>';
+   command[length + 2]='&';
+   command[length + 3]='1';
+   command[length + 4]='\0';
+   //free(url_encoded_command);
    return command;
 }
 
@@ -67,6 +66,8 @@ void handle_good_request(int *socket, char *request_body){
    char *size_string = (char *) malloc(10);
    int count=0, i=0, tot_size=0;
    char *command=get_command(request_body);
+   char *complete_message;
+   printf("%s\n", command);
    fp = popen(command, "r");
    if (fp == NULL) {
       printf("Failed to run command\n" );
@@ -80,19 +81,28 @@ void handle_good_request(int *socket, char *request_body){
    pclose(fp);
    for (i=0;i<count;i++)
       tot_size+=strlen(entries[i]);
+   tot_size++;
+   complete_message = (char *)malloc(tot_size);
+
+   for (i=0;i<count;i++){
+      strcat(complete_message, entries[i]);
+   }
+
    sprintf(size_string, "%d", tot_size);
    write(*socket, "HTTP/1.1 200 OK\n", 16);
    write(*socket, "Content-length: ", 16);
    write(*socket, size_string, strlen(size_string));
    write(*socket, "\n", 1);
-   write(*socket, "Content-Type: text/html\n\n", 25);
-   for (i=0;i<count;i++){
-      write(*socket, entries[i], strlen(entries[i]));
-   }
+   write(*socket, "Content-Type: text/plain; charset=utf8\n\n", 40);
+   write(*socket, complete_message, tot_size);
+   write(*socket, "\n", 1);
+   
+   /*
    free(size_string);
    for (i=0;i<count;i++){
       free(entries[i]);
    }
+   free(complete_message);*/
 }
 
 // ************* HANDLE REQUEST IN A SEPERATE THREAD ***************
@@ -102,6 +112,7 @@ void* execute_thread(void* thread_param){
    char *request_body = (char *) malloc(bufsize);
    char *expected_request = "GET /exec/";
    recv(*socket, request_body, bufsize, 0);
+   printf("%s\n", request_body);
    if (strncmp(request_body, expected_request, 10)!=0) {
       write(*socket, "HTTP/1.1 404 Not Found\n", 23);
       write(*socket, "Content-length: 46\n", 19);
@@ -110,7 +121,7 @@ void* execute_thread(void* thread_param){
    } else {
       handle_good_request(socket, request_body);
    }
-   free(request_body);
+   //free(request_body);
    close(*socket);
    return NULL;
 }

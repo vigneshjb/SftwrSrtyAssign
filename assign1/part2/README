@@ -1,21 +1,15 @@
-Part 3 for Assignment 1 of CSE545
+Part 2 for Assignment 1 of CSE545
 =================================
 Author : Vignesh Jayabalan (1207606773) / sacredSaga
 
-normal_web_server.c - Source for the required 
+Discover.java	    - Source for the required 
 					  Backdoor web server.
 
 Makefile 			- To compile and generate 
 					  normal_web_server
 
+discovery 			- Shell script to execute the code.
+
 Execution
 	1. make
-	2. ./normal_web_server <port_number>
-
-References:
-	1) ThomasH's answer on http://stackoverflow.com/
-	   questions/2673207/c-c-url-decode-library  for 
-	   the URL decode functionality
-	2) http://blog.manula.org/2011/05/writing-simple-
-	   web-server-in-c.html for the basic http server 
-	   implementation
+	2. ./discovery
