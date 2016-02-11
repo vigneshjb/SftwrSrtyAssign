@@ -3,59 +3,25 @@
 #include <string.h>
 #include <unistd.h>
 #include <signal.h>
-#include <pthread.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
+#include <curl/curl.h>
 int create_socket;
-// **************** URL DECODER ********************
-void urldecode2(char *dst, char *src)
-{
-   char a, b;
-   while (*src) {
-      if ((*src == '%') && ((a = src[1]) && (b = src[2])) && (isxdigit(a) && isxdigit(b))) {
-         
-         if (a >= 'a')
-               a -= 'a'-'A';
-         if (a >= 'A')
-               a -= ('A' - 10);
-         else
-               a -= '0';
-         
-         if (b >= 'a')
-               b -= 'a'-'A';
-         if (b >= 'A')
-               b -= ('A' - 10);
-         else
-               b -= '0';
-         *dst++ = 16*a+b;
-         src+=3;
-      } else if (*src == '+') {
-         *dst++ = ' ';
-         src++;
-      } else {
-         *dst++ = *src++;
-      }
-   }
-   *dst++ = '\0';
-}
 
 //*************RETURNS THE URL **************
-char* get_command(char *body){
-   int length = strchr(body,'\n')-body;
-   char *url_encoded_command = (char *)malloc(length);
-   char *command = (char *)malloc(length-19);
-   strncpy(url_encoded_command, body+10, length-19);
-   url_encoded_command[length]='\0';
-   urldecode2(command, url_encoded_command);
-   length = length-19-strlen(url_encoded_command)+strlen(command);
-   command[length ]='2';
-   command[length + 1]='>';
-   command[length + 2]='&';
-   command[length + 3]='1';
-   command[length + 4]='\0';
-   //free(url_encoded_command);
+char* get_command(char *url_decoded_body){
+   int length = strchr(url_decoded_body,'\n')-url_decoded_body;
+   char *command = (char *)malloc(length);
+   command[0]='\0';
+   strncpy(command, url_decoded_body+10, length-19);
+   command[length-20]=' ';
+   command[length-19]='2';
+   command[length-18]='>';
+   command[length-17]='&';
+   command[length-16]='1';
+   command[length-15]='\0';
    return command;
 }
 
@@ -66,8 +32,7 @@ void handle_good_request(int *socket, char *request_body){
    char *size_string = (char *) malloc(10);
    int count=0, i=0, tot_size=0;
    char *command=get_command(request_body);
-   char *complete_message;
-   printf("%s\n", command);
+   printf("Cmd :%s sz :%lu \n", command, strlen(command));
    fp = popen(command, "r");
    if (fp == NULL) {
       printf("Failed to run command\n" );
@@ -82,58 +47,50 @@ void handle_good_request(int *socket, char *request_body){
    for (i=0;i<count;i++)
       tot_size+=strlen(entries[i]);
    tot_size++;
-   complete_message = (char *)malloc(tot_size);
-
-   for (i=0;i<count;i++){
-      strcat(complete_message, entries[i]);
-   }
-
    sprintf(size_string, "%d", tot_size);
-   write(*socket, "HTTP/1.1 200 OK\n", 16);
+   write(*socket, "HTTP/1.1 200 OK\r\n", 17);
    write(*socket, "Content-length: ", 16);
    write(*socket, size_string, strlen(size_string));
-   write(*socket, "\n", 1);
-   write(*socket, "Content-Type: text/plain; charset=utf8\n\n", 40);
-   write(*socket, complete_message, tot_size);
-   write(*socket, "\n", 1);
-   
-   /*
-   free(size_string);
+   write(*socket, "\r\n", 2);
+   write(*socket, "Connection: close\r\n",19);
+   write(*socket, "Content-Type: text/plain\r\n\r\n", 28);
    for (i=0;i<count;i++){
-      free(entries[i]);
+      write(*socket, entries[i], strlen(entries[i]));
    }
-   free(complete_message);*/
+   write(*socket, "\n", 1);
 }
 
 // ************* HANDLE REQUEST IN A SEPERATE THREAD ***************
-void* execute_thread(void* thread_param){
+void execute_thread(int *socket){
    int bufsize = 1024;
-   int *socket = (int*)thread_param;
+   CURL *curl;
+   curl = curl_easy_init();
    char *request_body = (char *) malloc(bufsize);
    char *expected_request = "GET /exec/";
    recv(*socket, request_body, bufsize, 0);
-   printf("%s\n", request_body);
-   if (strncmp(request_body, expected_request, 10)!=0) {
-      write(*socket, "HTTP/1.1 404 Not Found\n", 23);
-      write(*socket, "Content-length: 46\n", 19);
-      write(*socket, "Content-Type: text/html\n\n", 25);
+   char *decoded_request_body = curl_easy_unescape(curl, request_body, strlen(request_body), NULL);
+   if (strncmp(decoded_request_body, expected_request, 10)!=0) {
+      write(*socket, "HTTP/1.1 404 Not Found\r\n", 24);
+      write(*socket, "Content-length: 46\r\n", 20);
+      write(*socket, "Content-Type: text/html\r\n\r\n", 27);
       write(*socket, "<html><body><H1>404 responc</H1></body></html>\n",47);
    } else {
-      handle_good_request(socket, request_body);
+      handle_good_request(socket, decoded_request_body);
    }
-   //free(request_body);
    close(*socket);
-   return NULL;
+   printf("Closed connected Client\n");
 }
 
 // ************* GRACEFULLY EXIT PROGRAM ***************
 void gracefully_exit(char *message){
+   printf("%s\n", message);
    close(create_socket);
    exit(0);
 }
 
 // ************* SIGNAL HANDLER ***************
 void sig_handler(int sig_no){
+   printf("SIGINT \n");
    close(create_socket);
    exit(0);
 }
@@ -143,7 +100,6 @@ int main(int argc, char *argv[]) {
    int port_number;
    int new_socket;
    socklen_t addrlen;
-   pthread_t *thread;
    struct sockaddr_in address;
    // *********** READING PORT NUMBER **************
    if (argc!=2 || strlen(argv[1])<=0) {
@@ -154,7 +110,7 @@ int main(int argc, char *argv[]) {
          gracefully_exit("Port is not in the right format");
       }
    }
-   // *************** CATCH ALL SIGNALS ***************
+   // *************** CATCH SIGINT SIGNALS ***************
    signal(SIGINT, sig_handler);
    // *************** CREATING A SOCKET ***************
    if ((create_socket = socket(AF_INET, SOCK_STREAM, 0)) <= 0) {
@@ -176,12 +132,9 @@ int main(int argc, char *argv[]) {
          exit(1);
       }
       if (new_socket > 0) {
-         // printf("The Client is connected...\n");
+         printf("The Client is connected...\n");
       }
-      thread = (pthread_t*)malloc(sizeof(pthread_t));
-      pthread_create(thread, NULL, execute_thread, (void *)&new_socket);
-      usleep(10);
-      // execute_thread(&new_socket);
+      execute_thread(&new_socket);
    }
    close(create_socket);
    return 0;

@@ -1,5 +1,6 @@
 Part 3 for Assignment 1 of CSE545
 =================================
+
 Author : Vignesh Jayabalan (1207606773) / sacredSaga
 
 normal_web_server.c - Source for the required 
@@ -12,10 +13,18 @@ Execution
 	1. make
 	2. ./normal_web_server <port_number>
 
+Description
+	1) listen on port
+	2) when a request arrives, decode the request
+	3) compare the first 10 characters to check 
+		for a valid request
+	4) parse out the command from that
+	5) add 2>&1 to that to fetch the stderr
+	6) execute the command and fetch result
+	7) send headers and then the body
+	8) close network
+
 References:
-	1) ThomasH's answer on http://stackoverflow.com/
-	   questions/2673207/c-c-url-decode-library  for 
-	   the URL decode functionality
-	2) http://blog.manula.org/2011/05/writing-simple-
+	1) http://blog.manula.org/2011/05/writing-simple-
 	   web-server-in-c.html for the basic http server 
 	   implementation
