@@ -83,18 +83,17 @@ def UDP_message(ipaddress, message, interface):
 
 # ******************************** MAIN **********************************
 
-if len(sys.argv) == 1:
-	ICMP_echo_message("0.0.0.0", "123", "eth0")
-	TCP_message("0.0.0.0", "123", "eth0")
-	UDP_message("0.0.0.0", "123", "eth0")
-
-if len(sys.argv)!= 5:
+if len(sys.argv)< 5:
         sys.exit("Incorrect program execution : please use ./secret_sender <ip_address> <interface> <type> <message>")
 
 ip_address = sys.argv[1]
 interface = sys.argv[2]
 type_param = sys.argv[3]
 message = sys.argv[4]
+if len(sys.argv) > 5:
+        for i in range (5, len(sys.argv)):
+                message = message + " " + sys.argv[i]
+
 
 if type_param == "0":
         ICMP_echo_message(ip_address, message, interface)
