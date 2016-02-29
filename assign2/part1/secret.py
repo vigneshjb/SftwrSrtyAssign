@@ -17,20 +17,20 @@ def ICMP_echo_message(ipaddress, message, interface):
         frag_counter = 0
         for item in message:
                 print item, number
-                ip = IP(dst=ipaddress, proto=1)
+                ip = IP()/ICMP()
                 ip.id = int(hex(ord(item)).split("x")[1] + hex(number).split("x")[1], 16)
                 ip.frag = frag_counter
-                pack = ip/ICMP()
-                pack.show()
-                sendp(pack, iface = interface)
+                ip.dst = ipaddress
+                ip.show()
+                send(ip, iface = interface)
                 frag_counter = frag_counter + 1
 
-        ip = IP(dst=ipaddress, proto=1)
+        ip = IP()/ICMP()
         ip.id = int(hex(0).split("x")[1] + hex(number).split("x")[1], 16)
         ip.frag = frag_counter + 4096
-        pack = ip/ICMP()
-        pack.show()
-        sendp(pack, iface = interface)
+        ip.dst = ipaddress
+        ip.show()
+        send(ip, iface = interface)
         return
 
 #****************************** TCP THING *****************************
@@ -41,20 +41,20 @@ def TCP_message(ipaddress, message, interface):
         frag_counter = 0
         for item in message:
                 print item, number
-                ip = IP(dst=ipaddress, proto=6)
+                ip = IP()/TCP(dport=80, flags="S")
                 ip.id = int(hex(ord(item)).split("x")[1] + hex(number).split("x")[1], 16)
                 ip.frag = frag_counter
-                pack = ip/TCP(sport=1025, dport=80, flags="S")
-                pack.show()
-                sendp(pack, iface = interface)
+                ip.dst = ipaddress
+                ip.show()
+                send(ip, iface = interface)
                 frag_counter = frag_counter + 1
 
-        ip = IP(dst=ipaddress, proto=1)
+        ip = IP()/TCP(dport=80, flags="S")
         ip.id = int(hex(0).split("x")[1] + hex(number).split("x")[1], 16)
         ip.frag = frag_counter + 4096
-        pack = ip/TCP(sport=1025, dport=80, flags="S")
-        pack.show()
-        sendp(pack, iface = interface)
+        ip.dst = ipaddress
+        ip.show()
+        send(ip, iface = interface)
         return
 
 #****************************** UDP THING *****************************
@@ -65,28 +65,28 @@ def UDP_message(ipaddress, message, interface):
         frag_counter = 0
         for item in message:
                 print item, number
-                ip = IP(dst=ipaddress, proto=17)
+                ip = IP()/UDP(dport=53)
                 ip.id = int(hex(ord(item)).split("x")[1] + hex(number).split("x")[1], 16)
                 ip.frag = frag_counter
-                pack = ip/UDP(dport=53)
-                pack.show()
-                sendp(pack, iface = interface)
+                ip.dst = ipaddress
+                ip.show()
+                send(ip, iface = interface)
                 frag_counter = frag_counter + 1
 
-        ip = IP(dst=ipaddress, proto=1)
+        ip = IP()/UDP(dport=53)
         ip.id = int(hex(0).split("x")[1] + hex(number).split("x")[1], 16)
         ip.frag = frag_counter + 4096
-        pack = ip/UDP(dport=53)
-        pack.show()
-        sendp(pack, iface = interface)
+        ip.dst = ipaddress
+        ip.show()
+        send(ip, iface = interface)
         return
 
 # ******************************** MAIN **********************************
 
 if len(sys.argv) == 1:
-	ICMP_echo_message("0.0.0.0", " 123", "eth0")
-	TCP_message("0.0.0.0", " 123", "eth0")
-	UDP_message("0.0.0.0", " 123", "eth0")
+	ICMP_echo_message("0.0.0.0", "123", "eth0")
+	TCP_message("0.0.0.0", "123", "eth0")
+	UDP_message("0.0.0.0", "123", "eth0")
 
 if len(sys.argv)!= 5:
         sys.exit("Incorrect program execution : please use ./secret_sender <ip_address> <interface> <type> <message>")
