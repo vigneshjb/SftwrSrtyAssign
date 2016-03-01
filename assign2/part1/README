@@ -3,3 +3,19 @@ Part 1 of assignment 2 for CSE-545 Software Security
 
 Author : Vignesh Jayabalan (1207606773/SacredSaga)
 
+File description :
+	1) Makefile - to make the shell script executable
+	2) secret_sender - shell script to run the python
+					   script
+	3) secret.py - The core python file that contains 
+				   the complete implementation as
+				   described below
+
+Description : 
+
+	1) read the parametes from command line and parse 
+	it into the correct variables.
+	2) depending on the type create the packets using 
+	the scapy package functionalities.
+	3) set the destination IP, fragment offset and id
+	4) send the packets.
