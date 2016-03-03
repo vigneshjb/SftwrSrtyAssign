@@ -3,3 +3,16 @@ Part 2 of assignment 2 for CSE-545 Software Security
 
 Author : Vignesh Jayabalan (1207606773/SacredSaga)
 
+I used the second hint to a large extent and the most
+of the solution was available on the class forum. 
+
+The following steps will let us break the code.
+ 1) create the python program for reading the file
+ 2) use cksum to get the hash of the file
+ 3) encrypt the file using the public key
+
+I noticed that the decryption doesn't require to 
+specify the key that needs to be used. This combined 
+with the fact that the server is not comparing with 
+a hash that is already there on the server lead to 
+the easy breaking of the site.
